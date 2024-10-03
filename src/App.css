@@ -1,0 +1,56 @@
+.App {
+  font-family: 'Courier New', monospace; /* Usa una fuente monoespaciada */
+  background-color: #2b2727; /* Fondo oscuro */
+  color: #e0e0e0; /* Texto claro */
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.diagram-container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 50px;
+}
+.App-header {
+  background-color: #282c34;
+  color: white;
+  padding: 20px;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.sql-section {
+  background-color: #282c34;
+  border-radius: 5px;
+  padding: 20px;
+  margin-bottom: 20px;
+  width: 80%;
+  max-width: 800px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.section-title {
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.mockup-code {
+  border: 1px solid #555;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+  background-color: #1e1e1e;
+}
+
+footer {
+  margin-top: 30px;
+  text-align: center;
+  font-size: 0.8em;
+  color: #777;
+}
