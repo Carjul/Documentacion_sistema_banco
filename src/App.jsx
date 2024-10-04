@@ -13,77 +13,136 @@ import 'highlight.js/styles/atom-one-dark.css'; // Usa cualquier tema que prefie
 hljs.registerLanguage('sql', sql);
 
 function App() {
-  useEffect(() => {
-    hljs.highlightAll(); // Resalta todos los bloques <code> cuando se renderiza el componente
-  }, []);
+    useEffect(() => {
+        hljs.highlightAll(); // Resalta todos los bloques <code> cuando se renderiza el componente
+    }, []);
 
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Sistema Bancario Distribuido</h1>
-        <a href="https://portafolio-carlosramos.vercel.app/" target='_blank'><p>About me</p></a>
-        <a href="https://github.com/Carjul" target='_blank'><p>Github</p></a>
+    return (
+        <div className="App">
+            <header className="App-header">
+                <h1>Sistema Bancario Distribuido</h1>
+                <a href="https://portafolio-carlosramos.vercel.app/" target='_blank'><p>About me</p></a>
+                <a href="https://github.com/Carjul" target='_blank'><p>Github</p></a>
 
-      </header>
+            </header>
 
-      <section>
-        <h2>Descripción General</h2>
-        <p>Este sistema proporciona una gestión bancaria distribuida, permitiendo a cada sucursal gestionar sus propios datos de clientes y cuentas de forma independiente, mientras que la información crítica se gestiona de forma centralizada.</p>
-      </section>
+            <section>
+                <h2>Descripción General</h2>
+                <p>Desarrollar una base de datos distribuida para un sistema de gestión bancaria que permita a cada sucursal gestionar de forma independiente la información de sus clientes y cuentas bancarias, mientras que ciertos datos críticos deben estar disponibles y compartidos entre las sucursales. Además, se incluirá una gestión centralizada para operaciones comunes como préstamos, tarjetas de crédito y atención al cliente.
+El sistema también debe garantizar altos niveles de seguridad, protegiendo la información sensible de los clientes, como cuentas, saldos y transacciones, a través de encriptación y control de accesos robustos.
+</p>
+            </section>
 
-      <section>
-        <h2>Requerimientos</h2>
-        <ol>
-          <li><strong>Distribución de Datos:</strong>  Cada sucursal gestiona sus clientes y cuentas, con acceso centralizado para consultas globales.</li>
-          <li><strong>Seguridad y Privacidad:</strong>  Sistema robusto de gestión de contraseñas (bcrypt o scrypt), control de acceso basado en roles (cajero, asesor, gerente).</li>
-          <li><strong>Gestión Centralizada:</strong> Préstamos, tarjetas de crédito y atención al cliente se gestionan en la base de datos central.</li>
-          <li><strong>Interoperabilidad y Sincronización:</strong> Transacciones reflejadas en tiempo real entre sucursales (se recomienda un sistema de mensajería).</li>
-          <li><strong>Auditoría y Monitoreo:</strong>  Registro de todas las acciones en la base de datos central.</li>
-          <li><strong>Automatización de Usuarios y Contraseñas:</strong>  Creación automatizada de usuarios con gestión de credenciales.</li>
-        </ol>
-      </section>
+           
 
-      <section>
-        <h2>Arquitectura</h2>
-        <p>El sistema utiliza una arquitectura de base de datos distribuida con una base de datos central y bases de datos en cada sucursal.  Las relaciones se gestionan utilizando `postgres_fdw`.</p>
-        <h3>Diagrama Entidad-Relación (ER)</h3>
-        <div className="diagram-container">
-          {/* Aquí insertarás tu imagen del diagrama ER */}
-          <img src={imgEDR}  width ='80%'  alt="Diagrama Entidad-Relación" />
-        </div>
-        <h3>Diagrama de la Arquitectura</h3>
-        <div className="diagram-container">
-          {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
-          <img src={imgARQ}  width ='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
-        </div>
-        <h3>Diagrama de flujo gerente</h3>
-        <div className="diagram-container">
-          {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
-          <img src={imgDFG}  width ='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
-        </div>
-        <h3>Diagrama de flujo asesor_financiero</h3>
-        <div className="diagram-container">
-          {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
-          <img src={imgDFA}  width ='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
-        </div>
-        <h3>Diagrama flujo rol cajero</h3>
-        <div className="diagram-container">
-          {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
-          <img src={imgDFC}  width ='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
-        </div>
-      </section>
-      <section>
-        <h2>SQL Schema</h2>
-        <p>El siguiente esquema SQL describe las tablas y relaciones necesarias para implementar el sistema bancario distribuido.  Asegúrate de ajustar el esquema según los requisitos específicos de tu aplicación.</p>
-     
-      </section>
-    
+            <section>
+            <h2>Arquitectura del Sistema</h2>
+<p>
+  Este sistema bancario utiliza una arquitectura de base de datos distribuida que combina una base de datos central y bases de datos en cada sucursal. 
+  La base de datos central se encarga de gestionar la información crítica, como los préstamos y la atención al cliente, mientras que las sucursales almacenan y gestionan los datos específicos de sus clientes y cuentas.
+</p>
+<p>
+  La comunicación entre la base de datos central y las bases de datos de las sucursales se realiza mediante la extensión <code>postgres_fdw</code>, que permite ejecutar consultas distribuidas y acceder a los datos de manera eficiente. 
+  Esto asegura que todas las transacciones se registren y gestionen de forma coherente en todo el sistema.
+</p>
+ <h3>Diagrama Entidad-Relación (ER)</h3>
+                <div className="diagram-container">
+                    {/* Aquí insertarás tu imagen del diagrama ER */}
+                    <img src={imgEDR} width='80%' alt="Diagrama Entidad-Relación" />
+                </div>
+                <h3>Diagrama de la Arquitectura</h3>
+                <div className="diagram-container">
+                    {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
+                    <img src={imgARQ} width='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
+                </div>
+                <h3>Diagrama de flujo gerente</h3>
+                <div className="diagram-container">
+                    {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
+                    <img src={imgDFG} width='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
+                </div>
+                <h3>Diagrama de flujo asesor_financiero</h3>
+                <div className="diagram-container">
+                    {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
+                    <img src={imgDFA} width='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
+                </div>
+                <h3>Diagrama flujo rol cajero</h3>
+                <div className="diagram-container">
+                    {/* Aquí insertarás tu imagen del diagrama de arquitectura */}
+                    <img src={imgDFC} width='60%' height={'100%'} loading='lazy' alt="Diagrama de la Arquitectura" />
+                </div>
+            </section>
+            <section>
+                <h2>Diccionario de Datos</h2>
+                <ul>
+                    <li><strong>id_cliente</strong>: Identificador único del cliente (UUID).</li>
+                    <li><strong>nombre_cliente</strong>: Nombre completo del cliente (VARCHAR).</li>
+                    <li><strong>saldo</strong>: Saldo disponible en la cuenta del cliente (DECIMAL).</li>
+                    <li><strong>tipo_cuenta</strong>: Tipo de cuenta (Ahorros, Corriente, Inversión).</li>
+                    <li><strong>fecha_apertura</strong>: Fecha de apertura de la cuenta (DATE).</li>
+                    <li><strong>id_sucursal</strong>: Identificador único de la sucursal (UUID).</li>
+                    <li><strong>id_cuenta</strong>: Identificador único de la cuenta (UUID).</li>
+                    <li><strong>id_transaccion</strong>: Identificador único de la transacción (UUID).</li>
+                    <li><strong>tipo_transaccion</strong>: Tipo de transacción (Depósito, Retiro, Transferencia).</li>
+                    <li><strong>monto</strong>: Monto de la transacción (DECIMAL).</li>
+                    <li><strong>fecha</strong>: Fecha de la transacción (DATE).</li>
+                    <li><strong>id_sucursal</strong>: Identificador único de la sucursal (UUID).</li>
+                    <li><strong>id_ticket</strong>: Identificador único del ticket de atención al cliente (UUID).</li>
+                    <li><strong>asunto</strong>: Descripción del asunto del ticket (TEXT).</li>
+                    <li><strong>estado_ticket</strong>: Estado del ticket (Abierto, Cerrado, En Proceso).</li>
+                    <li><strong>id_usuario</strong>: Identificador único del usuario (SERIAL).</li>
+                    <li><strong>nombre_usuario</strong>: Nombre de usuario (VARCHAR).</li>
+                    <li><strong>contraseña</strong>: Contraseña encriptada (TEXT).</li>
+                    <li><strong>rol</strong>: Rol del usuario (cajero, asesor, gerente).</li>
+                    <li><strong>creado_en</strong>: Fecha de creación del usuario (TIMESTAMP).</li>
+                    <li><strong>id_prestamo</strong>: Identificador único del préstamo (UUID).</li>
+                    <li><strong>monto</strong>: Monto del préstamo (DECIMAL).</li>
+                    <li><strong>tasa_interes</strong>: Tasa de interés del préstamo (DECIMAL).</li>
+                    <li><strong>fecha_aprobacion</strong>: Fecha de aprobación del préstamo (DATE).</li>
+                    <li><strong>estado_prestamo</strong>: Estado del préstamo (VARCHAR).</li>
+                    <li><strong>id_tarjeta</strong>: Identificador único de la tarjeta de crédito (UUID).</li>
+                    <li><strong>limite_credito</strong>: Límite de crédito de la tarjeta (DECIMAL).</li>
+                    <li><strong>saldo_disponible</strong>: Saldo disponible en la tarjeta (DECIMAL).</li>
+                    <li><strong>fecha_emision</strong>: Fecha de emisión de la tarjeta (DATE).</li>
+                    <li><strong>estado</strong>: Estado de la tarjeta (VARCHAR).</li>
+                    <li><strong>audit_id</strong>: Identificador único de la entrada de auditoría (SERIAL).</li>
+                    <li><strong>user_id</strong>: ID del usuario que realizó la acción (VARCHAR).</li>
+                    <li><strong>action</strong>: Acción realizada (INSERT, UPDATE, DELETE).</li>
+                    <li><strong>timestamp</strong>: Fecha y hora de la acción (TIMESTAMP).</li>
+                    <li><strong>table_name</strong>: Nombre de la tabla afectada (VARCHAR).</li>
+                    <li><strong>record_id</strong>: ID del registro afectado (UUID).</li>
+                    <li><strong>old_data</strong>: Datos antiguos del registro (JSONB).</li>
+                    <li><strong>new_data</strong>: Datos nuevos del registro (JSONB).</li>
 
-      <section className="sql-section">
-        <h2 className="section-title">Tablas central</h2>
-        <div className="mockup-code">
-          <pre><code className="language-sql">
-            {`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- Habilitar la extensión uuid-ossp
+                </ul>
+            </section>
+            <section>
+                <h2>Distribución de Información</h2>
+                <p>La información de los clientes, cuentas, y transacciones se almacena de manera distribuida entre las sucursales. Sin embargo, la base de datos central gestiona información crítica como préstamos, tarjetas de crédito, y auditorías globales. Las conexiones entre sucursales y la base de datos central se gestionan mediante Foreign Data Wrappers (FDW), permitiendo realizar consultas distribuidas.</p>
+            </section>
+
+
+            <section>
+                <h2>Documentación de Seguridad</h2>
+                <p>El sistema implementa seguridad a nivel de base de datos mediante el uso de contraseñas encriptadas con <code>bcrypt</code> en PostgreSQL, utilizando la extensión <code>pgcrypto</code>. Los roles tienen permisos diferenciados de acceso a las tablas para garantizar el control de acceso basado en roles. Además, se auditan todas las modificaciones a través de triggers que registran las operaciones en la tabla <code>audit_log</code>.</p>
+            </section>
+            <section>
+                <h2>SQL Schema</h2>
+                <p>
+                    El siguiente esquema SQL describe las estructuras de las tablas, relaciones, y restricciones necesarias para implementar un sistema bancario distribuido.
+                    Este esquema está diseñado para gestionar la información de los clientes, cuentas, transacciones, préstamos, tarjetas de crédito, y atención al cliente de forma distribuida entre diferentes sucursales y una base de datos central.
+                    Además, incluye los mecanismos de seguridad, auditoría, y permisos basados en roles para garantizar un control seguro y eficiente del acceso a los datos.
+                </p>
+                <p>
+                    Las sucursales tienen sus propias bases de datos para almacenar la información local, mientras que la base de datos central es responsable de la gestión de datos críticos y la sincronización entre sucursales mediante consultas distribuidas y funciones remotas.
+                    Asegúrate de adaptar este esquema según los requisitos específicos de tu aplicación, como agregar nuevas restricciones, relaciones o índices según sea necesario.
+                </p>
+            </section>
+            
+            <section className="sql-section">
+                <h2 className="section-title">Tablas central</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">
+                        {`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- Habilitar la extensión uuid-ossp
 
 -- Crear la tabla de Préstamos
 CREATE TABLE Prestamos (
@@ -136,14 +195,14 @@ CREATE TABLE Usuarios (
     creado_en TIMESTAMP DEFAULT current_timestamp
 );
 `}
-          </code></pre>
-        </div>
-      </section>
-      <section className="sql-section">
-        <h2 className="section-title">Tablas Sucursal</h2>
-        <div className="mockup-code">
-          <pre><code className="language-sql">
-            {`-- Tablas de cada sucursal (ej. en Sucursal 1)
+                    </code></pre>
+                </div>
+            </section>
+            <section className="sql-section">
+                <h2 className="section-title">Tablas Sucursal</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">
+                        {`-- Tablas de cada sucursal (ej. en Sucursal 1)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";  -- Habilitar la extensión uuid-ossp
 
 -- Tabla de Sucursales
@@ -215,21 +274,24 @@ CREATE INDEX idx_sucursal ON Cuentas(id_sucursal);
 CREATE INDEX idx_transaccion_cuenta ON Transacciones(id_cuenta);
 
 `}
-          </code></pre>
-        </div>
-      </section>
-      <section className="sql-section">
-        <h2 className="section-title">Roles Sistema Bancarío</h2>
-        <div className="mockup-code">
-          <pre><code className="language-sql">{`
+                    </code></pre>
+                </div>
+            </section>
+            <section className="sql-section">
+                <h2 className="section-title">Roles Sistema Bancarío</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`
 -- Crear el rol de Cajero
 CREATE ROLE cajero LOGIN PASSWORD 'password_cajero';
 -- Permisos para gestionar cuentas y transacciones asociadas a una sucursal específica
 GRANT SELECT, INSERT, UPDATE ON Cuentas, Transacciones TO cajero;
 -- Permitir consultar clientes, pero solo para lectura
 GRANT SELECT ON Clientes TO cajero;
--- Permitir ver las sucursales para que pueda seleccionar la sucursal en la que trabaja
+-- Permitir registrar nuevos tickets de atención al cliente
+GRANT INSERT ON  Atencion_Clientes TO cajero;
+-- Permitir ver las sucursales para que pueda seleccionar la sucursal 
 GRANT SELECT ON Sucursales TO cajero;
+
 
 -- Crear el rol de Asesor Financiero
 CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor';
@@ -243,21 +305,22 @@ CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
 -- El gerente tiene acceso completo a todas las tablas en el esquema 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
 
--- Function crear user
-
+-- Function crear_usuario con bcrypt para encriptar contraseñas
 CREATE OR REPLACE FUNCTION crear_usuario(
     p_nombre_usuario VARCHAR(50),
     p_contraseña VARCHAR(50),
     p_rol VARCHAR(50)
 ) RETURNS VOID AS $$
 BEGIN
-	CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    -- Verificar que la extensión pgcrypto está instalada
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    
     -- Verificar que el rol proporcionado sea válido
     IF p_rol NOT IN ('cajero', 'asesor_financiero', 'gerente') THEN
         RAISE EXCEPTION 'Rol no válido. Los roles permitidos son: cajero, asesor_financiero, gerente';
     END IF;
     
-    -- Insertar el nuevo usuario con la contraseña encriptada
+    -- Insertar el nuevo usuario con la contraseña encriptada usando bcrypt
     INSERT INTO Usuarios (nombre_usuario, contraseña, rol)
     VALUES (p_nombre_usuario, crypt(p_contraseña, gen_salt('bf')), p_rol);
     
@@ -267,52 +330,70 @@ BEGIN
     -- Asignar permisos basados en el rol
     EXECUTE format('GRANT %I TO %I', p_rol, p_nombre_usuario);
     
+    -- Notificación de éxito
     RAISE NOTICE 'Usuario % creado con éxito', p_nombre_usuario;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Ejemplo de uso
-SELECT crear_usuario('juan_cajero', 'contraseña_inicial', 'cajero');
+SELECT crear_usuario('cajero2', 'contraseña_segura', 'cajero');
 
--- Function cambiar contraseña
-
-CREATE OR REPLACE FUNCTION crear_usuario(
+CREATE OR REPLACE FUNCTION cambiar_contraseña(
     p_nombre_usuario VARCHAR(50),
-    p_contraseña VARCHAR(50),
-    p_rol VARCHAR(50)
+    p_contraseña_antigua VARCHAR(50),
+    p_contraseña_nueva VARCHAR(50)
 ) RETURNS VOID AS $$
+DECLARE
+    v_contraseña_actual VARCHAR(60);
 BEGIN
-	CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    -- Verificar que el rol proporcionado sea válido
-    IF p_rol NOT IN ('cajero', 'asesor_financiero', 'gerente') THEN
-        RAISE EXCEPTION 'Rol no válido. Los roles permitidos son: cajero, asesor_financiero, gerente';
-    END IF;
-    
-    -- Insertar el nuevo usuario con la contraseña encriptada
-    INSERT INTO Usuarios (nombre_usuario, contraseña, rol)
-    VALUES (p_nombre_usuario, crypt(p_contraseña, gen_salt('bf')), p_rol);
-    
-    -- Crear el rol en PostgreSQL si no existe
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', p_nombre_usuario, p_contraseña);
+    -- Obtener la contraseña actual del usuario
+    SELECT contraseña INTO v_contraseña_actual
+    FROM Usuarios
+    WHERE nombre_usuario = p_nombre_usuario;
 
-    -- Asignar permisos basados en el rol
-    EXECUTE format('GRANT %I TO %I', p_rol, p_nombre_usuario);
-    
-    RAISE NOTICE 'Usuario % creado con éxito', p_nombre_usuario;
+    -- Verificar si el usuario existe
+    IF v_contraseña_actual IS NULL THEN
+        RAISE EXCEPTION 'Usuario no encontrado';
+    END IF;
+
+    -- Verificar si la contraseña antigua es correcta
+    IF v_contraseña_actual != crypt(p_contraseña_antigua, v_contraseña_actual) THEN
+        RAISE EXCEPTION 'Contraseña antigua incorrecta';
+    END IF;
+
+    -- Actualizar la contraseña en la tabla Usuarios
+    UPDATE Usuarios
+    SET contraseña = crypt(p_contraseña_nueva, gen_salt('bf'))
+    WHERE nombre_usuario = p_nombre_usuario;
+
+    -- Actualizar la contraseña del rol en PostgreSQL
+    EXECUTE format('ALTER ROLE %I PASSWORD %L', p_nombre_usuario, p_contraseña_nueva);
+
+    -- Mensaje de éxito
+    RAISE NOTICE 'Contraseña cambiada con éxito para el usuario %', p_nombre_usuario;
 END;
 $$ LANGUAGE plpgsql;
 
--- Ejemplo de uso
-SELECT crear_usuario('juan_cajero', 'contraseña_inicial', 'cajero');
+-- Ejemplo de uso:
+-- SELECT cambiar_contraseña('cajero1', 'contraseña_inicial', 'nueva_contraseña');
+
+-- Dar permisos para crear user
+GRANT EXECUTE ON FUNCTION crear_usuario TO gerente;
+-- Dar permisos para cambiar contraseña
+GRANT EXECUTE ON FUNCTION cambiar_contraseña TO gerente;
+GRANT EXECUTE ON FUNCTION cambiar_contraseña TO asesor_financiero;
+GRANT EXECUTE ON FUNCTION cambiar_contraseña TO cajero;
+
+
 `}
-          </code></pre>
-        </div>
-      </section>
-      <section className="sql-section">
-        <h2 className="section-title">Funciones</h2>
-        <div className="mockup-code">
-        <pre><code className="language-sql">{
-`
+                    </code></pre>
+                </div>
+            </section>
+            <section className="sql-section">
+                <h2 className="section-title">Funciones</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{
+                        `
 -- Función para crear una conexión remota a la central
 
 CREATE OR REPLACE FUNCTION create_remote_central_connection(
@@ -530,7 +611,7 @@ SELECT create_remote_sucursal_connection(
 CREATE OR REPLACE FUNCTION audit_function() RETURNS trigger AS $$
 DECLARE
     key_field TEXT;
-    key_value UUID;  -- Cambiado a UUID para reflejar el tipo de la clave primaria
+    key_value UUID; 
 BEGIN
     -- Obtener el nombre del campo clave primario de la tabla afectada
     SELECT attname INTO key_field
@@ -795,6 +876,7 @@ $BODY$;
 
 SELECT * FROM public.retiro('uuid_cuenta', 'monto', 'uuid_sucursal');
 
+
 --Function para  buscar un cliente de todas las sucursales desde central.
 
 CREATE OR REPLACE FUNCTION buscar_cliente_en_sucursales(p_id_cliente UUID)
@@ -888,15 +970,32 @@ $$ LANGUAGE plpgsql;
 
 SELECT * FROM obtener_saldo_total_sucursales();
 
+-- Dar permiso al rol de gerente para ejecutar las funciones
+
+GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO gerente;
+GRANT EXECUTE ON FUNCTION obtener_transacciones_sucursales(VARCHAR) TO gerente;
+GRANT EXECUTE ON FUNCTION obtener_saldo_total_sucursales() TO gerente;
+
+-- Dar permiso al rol de asesor financiero para ejecutar las funciones
+
+GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO asesor_financiero;
+
+-- Dar permiso al rol de cajero para ejecutar las funciones
+
+GRANT EXECUTE ON FUNCTION transferencia_interbancaria(UUID, UUID, DECIMAL) TO cajero;
+GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION Retirar(UUID, DECIMAL, UUID) TO cajero;
+
+
 
 `}</code></pre>
-        </div>
-      </section>
+                </div>
+            </section>
 
-      <section className="sql-section">
-        <h2 className="section-title">Triggers</h2>
-        <div className="mockup-code">
-          <pre><code className="language-sql">{`
+            <section className="sql-section">
+                <h2 className="section-title">Triggers</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`
 -- Trigger para auditar las operaciones en las tablas de la base de datos central
 
 CREATE TRIGGER atencion_clientes_audit_trigger
@@ -955,14 +1054,14 @@ FOR EACH ROW
 EXECUTE FUNCTION validar_cuenta_remota();
 
           `}</code></pre>
-        </div>
-      </section>
+                </div>
+            </section>
 
-      
-      <section className="sql-section">
-        <h2 className="section-title">Consultas</h2>
-        <div className="mockup-code">
-          <pre><code className="language-sql">{`
+
+            <section className="sql-section">
+                <h2 className="section-title">Consultas</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`
 
 -- 1. Consulta para verificar los datos de una cuenta específica por cliente
 
@@ -1010,13 +1109,13 @@ JOIN Clientes cl ON c.id_cliente = cl.id_cliente
 ORDER BY c.saldo DESC;
 
           `}</code></pre>
-        </div>
-      </section>
+                </div>
+            </section>
 
-      <section className="sql-section">
-        <h2 className="section-title">Procedimientos Almacenados</h2>
-        <div className="mockup-code">
-          <pre><code className="language-sql">{`
+            <section className="sql-section">
+                <h2 className="section-title">Procedimientos Almacenados</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`
 
 INSERT INTO Sucursales (id_sucursal, nombre_sucursal, ubicacion)
 VALUES 
@@ -1060,14 +1159,14 @@ VALUES
     (uuid_generate_v4(), 'id_cliente_de_maria', CURRENT_DATE, 'Solicitud de cambio de dirección', 'Cerrado');
 
           `}</code></pre>
-        </div>
-      </section>
+                </div>
+            </section>
 
-      <section className="sql-section">
-        <h2 className="section-title">Instalacion de Database y Administrador-SQL</h2>
-        <p>A modo de ejemplo podemos correr el sistema bancarío facilmente con Docker para simular servidores y su comunicación con el siguiente código yml </p>
-        <div className="mockup-code">
-          <pre><code className="language-sql">{`-- Compose file para Docker (docker-compose.yml)
+            <section className="sql-section">
+                <h2 className="section-title">Instalacion de Database y Administrador-SQL</h2>
+                <p>A modo de ejemplo podemos correr el sistema bancarío facilmente con Docker para simular servidores y su comunicación con el siguiente código yml </p>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`-- Compose file para Docker (docker-compose.yml)
 
 version: "3.9"
 services:
@@ -1107,14 +1206,14 @@ services:
     logging:
       driver: none
 `}</code></pre>
-        </div>
-      </section>
+                </div>
+            </section>
 
-      <footer>
-        <p>Documentación SQL - By Carlos Ramos.</p>
-      </footer>
-    </div>
-  );
+            <footer>
+                <p>Documentación SQL - By Carlos Ramos.</p>
+            </footer>
+        </div>
+    );
 }
 
 export default App;
