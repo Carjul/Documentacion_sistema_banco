@@ -962,27 +962,32 @@ SELECT * FROM obtener_saldo_total_sucursales();
                 <h2 className="section-title">Roles Sistema Bancarío</h2>
                 <div className="mockup-code">
                     <pre><code className="language-sql">{`
--- Roles en la base de datos central 
+-- Asignar Roles en la base de datos central
 
 -- Rol Cajero (acceso limitado)
 CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; 
 GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
 GRANT SELECT, UPDATE ON Usuarios TO cajero;  -- Permite ver datos de los usuarios (opcional)
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero; -- Permite hacer auditoria 
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
 GRANT EXECUTE ON FUNCTION transferencia_interbancaria(UUID, UUID, DECIMAL) TO cajero;
 GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO cajero;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
+
 -- Rol Asesor Financiero
 CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
 GRANT SELECT, INSERT, UPDATE, DELETE ON Prestamos TO asesor_financiero;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Tarjetas_Credito TO asesor_financiero;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Atencion_Clientes TO asesor_financiero;
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero; -- Permite hacer auditoria 
 GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero; -- Permite ver datos de los usuarios (opcional)
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
 
 -- Rol Gerente (permisos completos)
 CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
 GRANT SELECT ON audit_log TO gerente; -- Permiso para ver el log de auditoría
 GRANT EXECUTE ON FUNCTION obtener_transacciones_sucursales(VARCHAR) TO gerente;
 GRANT EXECUTE ON FUNCTION obtener_saldo_total_sucursales() TO gerente;
@@ -995,22 +1000,25 @@ GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gere
 
 -- Rol Cajero
 CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
-GRANT SELECT, INSERT, UPDATE ON Cuentas TO cajero;
-GRANT SELECT, INSERT, UPDATE ON Transacciones TO cajero;
-GRANT SELECT, UPDATE ON Usuarios TO cajero;
-GRANT SELECT ON Clientes TO cajero;
+GRANT SELECT ON Cuentas, Sucursales, Clientes, Usuarios TO cajero;
+GRANT  UPDATE ON Usuarios, Cuentas TO cajero;
 GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
-GRANT SELECT ON Sucursales TO cajero;
+GRANT SELECT, INSERT, UPDATE ON Transacciones TO cajero;
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero;
 GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
 GRANT EXECUTE ON FUNCTION retiro(UUID, DECIMAL, UUID) TO cajero;
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
+
 
 -- Rol Asesor Financiero
 CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
-GRANT SELECT, INSERT, UPDATE ON Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
+GRANT SELECT, INSERT, UPDATE ON Clientes, Cuentas, Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero;
 GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero;
-GRANT SELECT ON Cuentas, Transacciones, Clientes TO asesor_financiero;
+GRANT SELECT ON Transacciones TO asesor_financiero;
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
 
 
 -- Rol Gerente (permisos completos)
@@ -1021,6 +1029,27 @@ GRANT SELECT, INSERT, UPDATE ON Usuarios TO asesor_financiero;
 GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
 GRANT SELECT ON audit_log TO gerente; -- Permiso para ver el log de auditoría
+
+
+--------------------------------------------------------------------------------------------------------------------------------------
+-- Asignar permisos a los roles en las bases de datos cetral - es así por que cada suscursal se guarda en un nuevo esquema.
+DO $$
+DECLARE
+    esquema TEXT;
+BEGIN
+    -- Iterar sobre todos los esquemas que no son esquemas del sistema
+    FOR esquema IN
+        SELECT schema_name
+        FROM information_schema.schemata
+        WHERE schema_name NOT IN ('public', 'information_schema', 'pg_catalog', 'pg_toast', 'pg_temp_1', 'pg_toast_temp_1')
+    LOOP
+        -- Otorgar permisos de SELECT sobre cada esquema 
+        EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO cajero', esquema);
+        EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO asesor_financiero', esquema);
+        EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I TO gerente', esquema);
+    END LOOP;
+END $$;
+
                     `}
                     </code></pre>
                 </div>
@@ -1093,7 +1122,7 @@ EXECUTE FUNCTION validar_cuenta_remota();
 
             <section className="sql-section">
                 <h2 className="section-title">Consultas</h2>
-                <div className="mockup-code">
+                <div className="mockup-code"> 
                     <pre><code className="language-sql">{`
 
 -- 1. Consulta para verificar los datos de una cuenta específica por cliente
@@ -1149,22 +1178,24 @@ ORDER BY c.saldo DESC;
                 <h2 className="section-title">Procedimientos Almacenados</h2>
                 <div className="mockup-code">
                     <pre><code className="language-sql">{`
+-- Ejecuta usuario rol gerente
 
 INSERT INTO Sucursales (id_sucursal, nombre_sucursal, ubicacion)
 VALUES 
     (uuid_generate_v4(), 'Sucursal Norte', 'Avenida Norte 456, Ciudad B');
 
-
+-- Ejecuta usuario rol asesor financiero
 INSERT INTO Clientes (id_cliente, nombre_cliente, direccion, tel_cliente, correo_cliente)
 VALUES 
     (uuid_generate_v4(), 'Juan Pérez', 'Calle Falsa 123, Ciudad A', '555-1234', 'juan.perez@email.com'),
     (uuid_generate_v4(), 'María López', 'Avenida Siempre Viva 456, Ciudad B', '555-5678', 'maria.lopez@email.com');
 
--- Obtener ids de cliente y sucursal
+-- Obtener ids de cliente y sucursal, tienen permisos para hacerlo el cajero, asesor financiero y gerente.
 
 SELECT id_cliente FROM Clientes WHERE nombre_cliente = 'Juan Pérez';
 SELECT id_sucursal FROM Sucursales WHERE nombre_sucursal = 'Sucursal Centro';
 
+-- Ejecuta en usuario con rol asesor financiero
 
 INSERT INTO Cuentas (id_cuenta, id_cliente, tipo_cuenta, saldo, fecha_apertura, id_sucursal)
 VALUES 
@@ -1172,7 +1203,7 @@ VALUES
     (uuid_generate_v4(), 'id_cliente_de_maria', 'Corriente', 0.00, CURRENT_DATE, 'id_sucursal_norte');
 
 
--- Para tabla transacciones usar funvtion depositar y retiro
+-- Para tabla transacciones usar function depositar y retiro para hacer transacciones. Usar rol cajero.
 
 INSERT INTO Prestamos (id_prestamo, id_cliente, monto, tasa_interes, fecha_aprobacion, estado_prestamo)
 VALUES 
