@@ -281,7 +281,27 @@ CREATE INDEX idx_transaccion_cuenta ON Transacciones(id_cuenta);
                 <h2 className="section-title">Roles Sistema Bancarío</h2>
                 <div className="mockup-code">
                     <pre><code className="language-sql">{`
+-- Crear el rol en central db
+
 -- Crear el rol de Cajero
+CREATE ROLE cajero LOGIN PASSWORD 'password_cajero';
+-- Permisos para gestionar cuentas y transacciones asociadas a una sucursal específica
+
+GRANT INSERT ON  Atencion_Clientes TO cajero;
+
+-- Crear el rol de Asesor Financiero
+CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor';
+-- Permisos para gestionar préstamos, tarjetas de crédito y atención al cliente
+GRANT SELECT, INSERT, UPDATE ON Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
+
+-- Crear el rol de Gerente
+CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
+-- El gerente tiene acceso completo a todas las tablas en el esquema 
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
+
+-----------------------------------------------------------------------------------------------------------
+-- Crear el rol en sucursal db
+
 CREATE ROLE cajero LOGIN PASSWORD 'password_cajero';
 -- Permisos para gestionar cuentas y transacciones asociadas a una sucursal específica
 GRANT SELECT, INSERT, UPDATE ON Cuentas, Transacciones TO cajero;
@@ -304,7 +324,7 @@ GRANT SELECT ON Clientes, Cuentas TO asesor_financiero;
 CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
 -- El gerente tiene acceso completo a todas las tablas en el esquema 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
-
+---------------------------------------------------------------------------------------------------------------
 -- Function crear_usuario con bcrypt para encriptar contraseñas
 CREATE OR REPLACE FUNCTION crear_usuario(
     p_nombre_usuario VARCHAR(50),
@@ -337,7 +357,7 @@ $$ LANGUAGE plpgsql;
 
 -- Ejemplo de uso
 SELECT crear_usuario('cajero2', 'contraseña_segura', 'cajero');
-
+-----------------------------------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION cambiar_contraseña(
     p_nombre_usuario VARCHAR(50),
     p_contraseña_antigua VARCHAR(50),
@@ -375,7 +395,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Ejemplo de uso:
--- SELECT cambiar_contraseña('cajero1', 'contraseña_inicial', 'nueva_contraseña');
+SELECT cambiar_contraseña('cajero1', 'contraseña_inicial', 'nueva_contraseña');
+
+-----------------------------------------------------------------------------------------------------------------
 
 -- Dar permisos para crear user
 GRANT EXECUTE ON FUNCTION crear_usuario TO gerente;
@@ -483,6 +505,8 @@ SELECT create_remote_central_connection(
     'public',                  -- schema
     ARRAY['Prestamos', 'Atencion_Clientes', 'Tarjetas_Credito']  -- tables to import
 );
+
+-----------------------------------------------------------------------------------------------------------------
 
 -- Función para crear una conexión remota a una sucursal y se crea un nuevo esquema en la central con el server name para evitar coliciones.
 
@@ -606,7 +630,9 @@ SELECT create_remote_sucursal_connection(
     'admin',                   -- local user
     ARRAY['Clientes', 'Cuentas', 'Transacciones']  -- tables to import
 );
-        
+
+-----------------------------------------------------------------------------------------------------------------
+
 -- Función para auditar las operaciones en las tablas
 CREATE OR REPLACE FUNCTION audit_function() RETURNS trigger AS $$
 DECLARE
@@ -647,6 +673,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-----------------------------------------------------------------------------------------------------------------
+
 -- Funcion validar cuenta se usa para buscar la exixtencia del cliente para la integridad de los datos en la centrañ
 
 CREATE OR REPLACE FUNCTION validar_cuenta_remota()
@@ -682,6 +710,102 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-----------------------------------------------------------------------------------------------------------------
+
+-- Function para depositar dinero en cuentas de una suscursal.
+
+CREATE OR REPLACE FUNCTION Depositar(
+    _id_cuenta UUID,
+    _monto DECIMAL(12,2),
+    _id_sucursal UUID
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _id_transaccion UUID;
+BEGIN
+    -- Verificar que la cuenta exista y pertenezca a la sucursal
+    IF NOT EXISTS (SELECT 1 FROM Cuentas WHERE id_cuenta = _id_cuenta AND id_sucursal = _id_sucursal) THEN
+        RAISE EXCEPTION 'La cuenta no existe o no pertenece a esta sucursal';
+    END IF;
+
+    -- Generar un nuevo UUID para la transacción
+    _id_transaccion := uuid_generate_v4();
+
+    -- Registrar la transacción
+    INSERT INTO Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
+    VALUES (_id_transaccion, _id_cuenta, 'Depósito', _monto, CURRENT_DATE, _id_sucursal);
+
+    -- Incrementar el saldo de la cuenta
+    UPDATE Cuentas SET saldo = saldo + _monto WHERE id_cuenta = _id_cuenta;
+
+    -- Retornar el ID de la transacción
+    RETURN _id_transaccion;
+
+EXCEPTION 
+    WHEN OTHERS THEN
+        -- La transacción se revierte automáticamente aquí
+        RAISE;
+END;
+$$;
+
+-----------------------------------------------------------------------------------------------------------------
+
+-- Function para retira dinero en cuentas de una suscursal.
+
+CREATE OR REPLACE FUNCTION public.retiro(
+	_id_cuenta uuid,
+	_monto numeric,
+	_id_sucursal uuid)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    _id_transaccion UUID;
+    _saldo_actual DECIMAL(12,2);
+BEGIN
+    -- Verificar que la cuenta exista y pertenezca a la sucursal
+    IF NOT EXISTS (SELECT 1 FROM Cuentas WHERE id_cuenta = _id_cuenta AND id_sucursal = _id_sucursal) THEN
+        RAISE EXCEPTION 'La cuenta no existe o no pertenece a esta sucursal';
+    END IF;
+
+    -- Obtener el saldo actual de la cuenta
+    SELECT saldo INTO _saldo_actual FROM Cuentas WHERE id_cuenta = _id_cuenta;
+
+    -- Verificar si hay fondos suficientes
+    IF _saldo_actual < _monto THEN
+        RAISE EXCEPTION 'Saldo insuficiente para realizar el retiro';
+    END IF;
+
+    -- Generar un nuevo UUID para la transacción
+    _id_transaccion := uuid_generate_v4();
+
+    -- Registrar la transacción
+    INSERT INTO Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
+    VALUES (_id_transaccion, _id_cuenta, 'Retiro', _monto * 1, CURRENT_DATE, _id_sucursal);
+
+    -- Decrementar el saldo de la cuenta
+    UPDATE Cuentas SET saldo = saldo - _monto WHERE id_cuenta = _id_cuenta;
+
+    -- Retornar el ID de la transacción
+    RETURN _id_transaccion;
+
+EXCEPTION 
+    WHEN OTHERS THEN
+        -- La transacción se revierte automáticamente aquí
+        RAISE;
+END;
+$BODY$;
+
+-- Ejemplo de uso:
+
+SELECT * FROM public.retiro('uuid_cuenta', 'monto', 'uuid_sucursal');
+
+-----------------------------------------------------------------------------------------------------------------
 
 -- function transferencía entre cuentas de diferente sucursal, desde db central.
 
@@ -786,96 +910,7 @@ SELECT transferencia_interbancaria(
     p_monto DECIMAL
 )
 
--- Function para depositar dinero en cuentas de una suscursal.
-
-CREATE OR REPLACE FUNCTION Depositar(
-    _id_cuenta UUID,
-    _monto DECIMAL(12,2),
-    _id_sucursal UUID
-)
-RETURNS UUID
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    _id_transaccion UUID;
-BEGIN
-    -- Verificar que la cuenta exista y pertenezca a la sucursal
-    IF NOT EXISTS (SELECT 1 FROM Cuentas WHERE id_cuenta = _id_cuenta AND id_sucursal = _id_sucursal) THEN
-        RAISE EXCEPTION 'La cuenta no existe o no pertenece a esta sucursal';
-    END IF;
-
-    -- Generar un nuevo UUID para la transacción
-    _id_transaccion := uuid_generate_v4();
-
-    -- Registrar la transacción
-    INSERT INTO Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
-    VALUES (_id_transaccion, _id_cuenta, 'Depósito', _monto, CURRENT_DATE, _id_sucursal);
-
-    -- Incrementar el saldo de la cuenta
-    UPDATE Cuentas SET saldo = saldo + _monto WHERE id_cuenta = _id_cuenta;
-
-    -- Retornar el ID de la transacción
-    RETURN _id_transaccion;
-
-EXCEPTION 
-    WHEN OTHERS THEN
-        -- La transacción se revierte automáticamente aquí
-        RAISE;
-END;
-$$;
-
--- Function para retira dinero en cuentas de una suscursal.
-
-CREATE OR REPLACE FUNCTION public.retiro(
-	_id_cuenta uuid,
-	_monto numeric,
-	_id_sucursal uuid)
-    RETURNS uuid
-    LANGUAGE 'plpgsql'
-    COST 100
-    VOLATILE PARALLEL UNSAFE
-AS $BODY$
-DECLARE
-    _id_transaccion UUID;
-    _saldo_actual DECIMAL(12,2);
-BEGIN
-    -- Verificar que la cuenta exista y pertenezca a la sucursal
-    IF NOT EXISTS (SELECT 1 FROM Cuentas WHERE id_cuenta = _id_cuenta AND id_sucursal = _id_sucursal) THEN
-        RAISE EXCEPTION 'La cuenta no existe o no pertenece a esta sucursal';
-    END IF;
-
-    -- Obtener el saldo actual de la cuenta
-    SELECT saldo INTO _saldo_actual FROM Cuentas WHERE id_cuenta = _id_cuenta;
-
-    -- Verificar si hay fondos suficientes
-    IF _saldo_actual < _monto THEN
-        RAISE EXCEPTION 'Saldo insuficiente para realizar el retiro';
-    END IF;
-
-    -- Generar un nuevo UUID para la transacción
-    _id_transaccion := uuid_generate_v4();
-
-    -- Registrar la transacción
-    INSERT INTO Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
-    VALUES (_id_transaccion, _id_cuenta, 'Retiro', _monto * 1, CURRENT_DATE, _id_sucursal);
-
-    -- Decrementar el saldo de la cuenta
-    UPDATE Cuentas SET saldo = saldo - _monto WHERE id_cuenta = _id_cuenta;
-
-    -- Retornar el ID de la transacción
-    RETURN _id_transaccion;
-
-EXCEPTION 
-    WHEN OTHERS THEN
-        -- La transacción se revierte automáticamente aquí
-        RAISE;
-END;
-$BODY$;
-
--- Ejemplo de uso:
-
-SELECT * FROM public.retiro('uuid_cuenta', 'monto', 'uuid_sucursal');
-
+-----------------------------------------------------------------------------------------------------------------
 
 --Function para  buscar un cliente de todas las sucursales desde central.
 
@@ -910,6 +945,8 @@ $$ LANGUAGE plpgsql;
 
 SELECT * FROM buscar_cliente_en_sucursales('id_cliente');
 
+-----------------------------------------------------------------------------------------------------------------
+
 --Function para obtener transaciones en todas las sucursales desde central.
 
 CREATE OR REPLACE FUNCTION obtener_transacciones_sucursales(p_tipo_transaccion VARCHAR)
@@ -942,6 +979,8 @@ $$ LANGUAGE plpgsql;
 
 SELECT * FROM obtener_transacciones_sucursales('tipo transacción');
 
+-----------------------------------------------------------------------------------------------------------------
+
 --Function para obtener saldo total del banco por sucursal.
 
 CREATE OR REPLACE FUNCTION obtener_saldo_total_sucursales()
@@ -970,21 +1009,28 @@ $$ LANGUAGE plpgsql;
 
 SELECT * FROM obtener_saldo_total_sucursales();
 
+-----------------------------------------------------------------------------------------------------------------
+
 -- Dar permiso al rol de gerente para ejecutar las funciones
 
 GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO gerente;
 GRANT EXECUTE ON FUNCTION obtener_transacciones_sucursales(VARCHAR) TO gerente;
 GRANT EXECUTE ON FUNCTION obtener_saldo_total_sucursales() TO gerente;
 
--- Dar permiso al rol de asesor financiero para ejecutar las funciones
+-- Dar permiso al rol de asesor financiero para ejecutar las funciones en la central
 
 GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO asesor_financiero;
 
--- Dar permiso al rol de cajero para ejecutar las funciones
+-- Dar permiso al rol de cajero para ejecutar las funciones la central
 
 GRANT EXECUTE ON FUNCTION transferencia_interbancaria(UUID, UUID, DECIMAL) TO cajero;
+
+-----------------------------------------------------------------------------------------------------------------
+
+-- Dar permiso al rol de cajero para ejecutar las funciones en la sucursal
+
 GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
-GRANT EXECUTE ON FUNCTION Retirar(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION Retiro(UUID, DECIMAL, UUID) TO cajero;
 
 
 
