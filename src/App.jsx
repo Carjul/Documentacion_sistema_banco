@@ -134,7 +134,7 @@ El sistema también debe garantizar altos niveles de seguridad, protegiendo la i
                 </p>
                 <p>
                     Las sucursales tienen sus propias bases de datos para almacenar la información local, mientras que la base de datos central es responsable de la gestión de datos críticos y la sincronización entre sucursales mediante consultas distribuidas y funciones remotas.
-                    Asegúrate de adaptar este esquema según los requisitos específicos de tu aplicación, como agregar nuevas restricciones, relaciones o índices según sea necesario.
+                    Asegúrate de adaptar este esquema según los requisitos específicos de tu aplicación, como agregar nuevas restricciones, relaciones o índices según sea necesario. Tambien es necesario hacer esto como user superuser.
                 </p>
             </section>
             
@@ -277,55 +277,13 @@ CREATE INDEX idx_transaccion_cuenta ON Transacciones(id_cuenta);
                     </code></pre>
                 </div>
             </section>
+            
             <section className="sql-section">
-                <h2 className="section-title">Roles Sistema Bancarío</h2>
+                <h2 className="section-title">Funciones</h2>
                 <div className="mockup-code">
-                    <pre><code className="language-sql">{`
--- Crear el rol en central db
+                    <pre><code className="language-sql scrollable-section">{
+`-- Function crear_usuario con bcrypt para encriptar contraseñas, asignar roles en la central y sucursal.
 
--- Crear el rol de Cajero
-CREATE ROLE cajero LOGIN PASSWORD 'password_cajero';
--- Permisos para gestionar cuentas y transacciones asociadas a una sucursal específica
-
-GRANT INSERT ON  Atencion_Clientes TO cajero;
-
--- Crear el rol de Asesor Financiero
-CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor';
--- Permisos para gestionar préstamos, tarjetas de crédito y atención al cliente
-GRANT SELECT, INSERT, UPDATE ON Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
-
--- Crear el rol de Gerente
-CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
--- El gerente tiene acceso completo a todas las tablas en el esquema 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
-
------------------------------------------------------------------------------------------------------------
--- Crear el rol en sucursal db
-
-CREATE ROLE cajero LOGIN PASSWORD 'password_cajero';
--- Permisos para gestionar cuentas y transacciones asociadas a una sucursal específica
-GRANT SELECT, INSERT, UPDATE ON Cuentas, Transacciones TO cajero;
--- Permitir consultar clientes, pero solo para lectura
-GRANT SELECT ON Clientes TO cajero;
--- Permitir registrar nuevos tickets de atención al cliente
-GRANT INSERT ON  Atencion_Clientes TO cajero;
--- Permitir ver las sucursales para que pueda seleccionar la sucursal 
-GRANT SELECT ON Sucursales TO cajero;
-
-
--- Crear el rol de Asesor Financiero
-CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor';
--- Permisos para gestionar préstamos, tarjetas de crédito y atención al cliente
-GRANT SELECT, INSERT, UPDATE ON Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
--- Permitir consultar clientes y cuentas, pero solo para lectura
-GRANT SELECT ON Clientes, Cuentas TO asesor_financiero;
-
--- Crear el rol de Gerente
-CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
--- El gerente tiene acceso completo a todas las tablas en el esquema 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
----------------------------------------------------------------------------------------------------------------
--- Function crear_usuario con bcrypt para encriptar contraseñas
 CREATE OR REPLACE FUNCTION crear_usuario(
     p_nombre_usuario VARCHAR(50),
     p_contraseña VARCHAR(50),
@@ -357,7 +315,11 @@ $$ LANGUAGE plpgsql;
 
 -- Ejemplo de uso
 SELECT crear_usuario('cajero2', 'contraseña_segura', 'cajero');
+
 -----------------------------------------------------------------------------------------------------------------
+
+-- Function cambiar_contraseña para cambiar la contraseña de un usuario en la central y sucursales.
+
 CREATE OR REPLACE FUNCTION cambiar_contraseña(
     p_nombre_usuario VARCHAR(50),
     p_contraseña_antigua VARCHAR(50),
@@ -399,23 +361,6 @@ SELECT cambiar_contraseña('cajero1', 'contraseña_inicial', 'nueva_contraseña'
 
 -----------------------------------------------------------------------------------------------------------------
 
--- Dar permisos para crear user
-GRANT EXECUTE ON FUNCTION crear_usuario TO gerente;
--- Dar permisos para cambiar contraseña
-GRANT EXECUTE ON FUNCTION cambiar_contraseña TO gerente;
-GRANT EXECUTE ON FUNCTION cambiar_contraseña TO asesor_financiero;
-GRANT EXECUTE ON FUNCTION cambiar_contraseña TO cajero;
-
-
-`}
-                    </code></pre>
-                </div>
-            </section>
-            <section className="sql-section">
-                <h2 className="section-title">Funciones</h2>
-                <div className="mockup-code">
-                    <pre><code className="language-sql">{
-                        `
 -- Función para crear una conexión remota a la central
 
 CREATE OR REPLACE FUNCTION create_remote_central_connection(
@@ -1009,35 +954,77 @@ $$ LANGUAGE plpgsql;
 
 SELECT * FROM obtener_saldo_total_sucursales();
 
------------------------------------------------------------------------------------------------------------------
-
--- Dar permiso al rol de gerente para ejecutar las funciones
-
-GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO gerente;
-GRANT EXECUTE ON FUNCTION obtener_transacciones_sucursales(VARCHAR) TO gerente;
-GRANT EXECUTE ON FUNCTION obtener_saldo_total_sucursales() TO gerente;
-
--- Dar permiso al rol de asesor financiero para ejecutar las funciones en la central
-
-GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO asesor_financiero;
-
--- Dar permiso al rol de cajero para ejecutar las funciones la central
-
-GRANT EXECUTE ON FUNCTION transferencia_interbancaria(UUID, UUID, DECIMAL) TO cajero;
-
------------------------------------------------------------------------------------------------------------------
-
--- Dar permiso al rol de cajero para ejecutar las funciones en la sucursal
-
-GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
-GRANT EXECUTE ON FUNCTION Retiro(UUID, DECIMAL, UUID) TO cajero;
-
-
 
 `}</code></pre>
                 </div>
             </section>
+            <section className="sql-section">
+                <h2 className="section-title">Roles Sistema Bancarío</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`
+-- Roles en la base de datos central 
 
+-- Rol Cajero (acceso limitado)
+CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; 
+GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
+GRANT SELECT, UPDATE ON Usuarios TO cajero;  -- Permite ver datos de los usuarios (opcional)
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
+GRANT EXECUTE ON FUNCTION transferencia_interbancaria(UUID, UUID, DECIMAL) TO cajero;
+GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO cajero;
+-- Rol Asesor Financiero
+CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
+GRANT SELECT, INSERT, UPDATE, DELETE ON Prestamos TO asesor_financiero;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Tarjetas_Credito TO asesor_financiero;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Atencion_Clientes TO asesor_financiero;
+GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero; -- Permite ver datos de los usuarios (opcional)
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
+
+-- Rol Gerente (permisos completos)
+CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;;
+GRANT SELECT ON audit_log TO gerente; -- Permiso para ver el log de auditoría
+GRANT EXECUTE ON FUNCTION obtener_transacciones_sucursales(VARCHAR) TO gerente;
+GRANT EXECUTE ON FUNCTION obtener_saldo_total_sucursales() TO gerente;
+GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
+
+--------------------------------------------------------------------------------------------------------------------------
+
+-- Roles en las bases de datos de las sucursales
+
+-- Rol Cajero
+CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
+GRANT SELECT, INSERT, UPDATE ON Cuentas TO cajero;
+GRANT SELECT, INSERT, UPDATE ON Transacciones TO cajero;
+GRANT SELECT, UPDATE ON Usuarios TO cajero;
+GRANT SELECT ON Clientes TO cajero;
+GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
+GRANT SELECT ON Sucursales TO cajero;
+GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION retiro(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
+
+-- Rol Asesor Financiero
+CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
+GRANT SELECT, INSERT, UPDATE ON Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
+GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero;
+GRANT SELECT ON Cuentas, Transacciones, Clientes TO asesor_financiero;
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
+
+
+-- Rol Gerente (permisos completos)
+CREATE ROLE gerente LOGIN PASSWORD 'password_gerente'; -- Reemplazar con una contraseña segura
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
+GRANT SELECT, INSERT, UPDATE ON Usuarios TO asesor_financiero;
+GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
+GRANT SELECT ON audit_log TO gerente; -- Permiso para ver el log de auditoría
+                    `}
+                    </code></pre>
+                </div>
+            </section>
             <section className="sql-section">
                 <h2 className="section-title">Triggers</h2>
                 <div className="mockup-code">
