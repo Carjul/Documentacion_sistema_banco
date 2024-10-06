@@ -962,56 +962,8 @@ $$ LANGUAGE plpgsql;
 SELECT * FROM obtener_saldo_total_sucursales();
 
 
-`}</code></pre>
-                </div>
-            </section>
-            <section className="sql-section">
-                <h2 className="section-title">Roles Sistema Bancarío</h2>
-                <div className="mockup-code">
-                    <pre><code className="language-sql">{`
--- Roles en la base de datos central, es repetitivo asignar roles, ya qué se debe tener en cuenta la seguridad de los datos y qué estos se deben crear en cada sucarsal nueva.
--- Nota: Debido al diseño y funcionamiento de la base de datos central, se recomienda asignar roles en las sucursales y usar rol postgres para consultas centalizadas.
-
---------------------------------------------------------------------------------------------------------------------------
-
--- Roles en las bases de datos de las sucursales
--- Nota: Se debe conectar la base de datos central con las sucursales para asignar los roles.
-
--- Rol Cajero
-CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
-GRANT SELECT ON Cuentas, Sucursales, Clientes, Usuarios TO cajero;
-GRANT  UPDATE ON Usuarios, Cuentas TO cajero;
-GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
-GRANT SELECT, INSERT, UPDATE ON Transacciones TO cajero;
-GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero;
-GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
-GRANT EXECUTE ON FUNCTION retiro(UUID, DECIMAL, UUID) TO cajero;
-GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
-
-
--- Rol Asesor Financiero
-CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
-GRANT SELECT, INSERT, UPDATE ON Clientes, Cuentas, Prestamos, Tarjetas_Credito, Atencion_Clientes, Audit_Log  TO asesor_financiero;
-GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero;
-GRANT SELECT ON Transacciones, Sucursales TO asesor_financiero;
-GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
-
-
--- Rol Gerente (permisos completos)
-CREATE ROLE gerente LOGIN PASSWORD 'password_gerente'; -- Reemplazar con una contraseña segura
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
-GRANT SELECT, INSERT, UPDATE ON Usuarios TO gerente;
-GRANT SELECT, INSERT, UPDATE ON Audit_Log TO gerente;
-GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
-GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
-
-
-
-                    `}
-                    </code></pre>
+`}</code>
+</pre>
                 </div>
             </section>
             <section className="sql-section">
@@ -1080,6 +1032,56 @@ EXECUTE FUNCTION audit_function();
                 </div>
             </section>
 
+            <section className="sql-section">
+                <h2 className="section-title">Roles Sistema Bancarío</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql">{`
+-- Roles en la base de datos central, es repetitivo asignar roles, ya qué se debe tener en cuenta la seguridad de los datos y qué estos se deben crear en cada sucarsal nueva.
+-- Nota: Debido al diseño y funcionamiento de la base de datos central, se recomienda asignar roles en las sucursales y usar rol postgres para consultas centalizadas.
+
+--------------------------------------------------------------------------------------------------------------------------
+
+-- Roles en las bases de datos de las sucursales
+-- Nota: Se debe conectar la base de datos central con las sucursales para asignar los roles.
+
+-- Rol Cajero
+CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
+GRANT SELECT ON Cuentas, Sucursales, Clientes, Usuarios TO cajero;
+GRANT  UPDATE ON Usuarios, Cuentas TO cajero;
+GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
+GRANT SELECT, INSERT, UPDATE ON Transacciones TO cajero;
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero;
+GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION retiro(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
+
+
+-- Rol Asesor Financiero
+CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
+GRANT SELECT, INSERT, UPDATE ON Clientes, Cuentas, Prestamos, Tarjetas_Credito, Atencion_Clientes, Audit_Log  TO asesor_financiero;
+GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero;
+GRANT SELECT ON Transacciones, Sucursales TO asesor_financiero;
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
+
+
+-- Rol Gerente (permisos completos)
+CREATE ROLE gerente LOGIN PASSWORD 'password_gerente'; -- Reemplazar con una contraseña segura
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
+GRANT SELECT, INSERT, UPDATE ON Usuarios TO gerente;
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO gerente;
+GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
+GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
+
+
+
+                    `}
+                    </code></pre>
+                </div>
+            </section>
+        
 
             <section className="sql-section">
                 <h2 className="section-title">Consultas</h2>
