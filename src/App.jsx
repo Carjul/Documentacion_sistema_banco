@@ -21,8 +21,8 @@ function App() {
         <div className="App">
             <header className="App-header">
                 <h1>Sistema Bancario Distribuido</h1>
-                <a href="https://portafolio-carlosramos.vercel.app/" target='_blank'><p>About me</p></a>
-                <a href="https://github.com/Carjul" target='_blank'><p>Github</p></a>
+    {/*             <a href="https://portafolio-carlosramos.vercel.app/" target='_blank'><p>About me</p></a>
+                <a href="https://github.com/Carjul" target='_blank'><p>Github</p></a> */}
 
             </header>
 
@@ -282,7 +282,52 @@ CREATE INDEX idx_transaccion_cuenta ON Transacciones(id_cuenta);
                 <h2 className="section-title">Funciones</h2>
                 <div className="mockup-code">
                     <pre><code className="language-sql scrollable-section">{
-`-- Function crear_usuario con bcrypt para encriptar contraseñas, asignar roles en la central y sucursal.
+                        
+`
+-- Función para auditar las operaciones en las tablas
+
+CREATE OR REPLACE FUNCTION audit_function() RETURNS trigger AS $$
+DECLARE
+    key_field TEXT;
+    key_value UUID; 
+BEGIN
+    -- Obtener el nombre del campo clave primario de la tabla afectada
+    SELECT attname INTO key_field
+    FROM pg_index i
+    JOIN pg_attribute a ON a.attrelid = i.indrelid
+    AND a.attnum = ANY(i.indkey)
+    WHERE i.indrelid = TG_RELID
+    AND i.indisprimary;
+
+    -- Construir la clave primaria de manera dinámica usando EXECUTE
+    IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+        EXECUTE 'SELECT ($1).' || key_field INTO key_value USING NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        EXECUTE 'SELECT ($1).' || key_field INTO key_value USING OLD;
+    END IF;
+
+    -- Registrar la operación de INSERT
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO public.audit_log(user_id, action, timestamp, table_name, record_id, new_data)
+        VALUES (current_user, TG_OP, current_timestamp, TG_TABLE_NAME, key_value, row_to_json(NEW));
+        RETURN NEW;
+    -- Registrar la operación de UPDATE
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO public.audit_log(user_id, action, timestamp, table_name, record_id, old_data, new_data)
+        VALUES (current_user, TG_OP, current_timestamp, TG_TABLE_NAME, key_value, row_to_json(OLD), row_to_json(NEW));
+        RETURN NEW;
+    -- Registrar la operación de DELETE
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO public.audit_log(user_id, action, timestamp, table_name, record_id, old_data)
+        VALUES (current_user, TG_OP, current_timestamp, TG_TABLE_NAME, key_value, row_to_json(OLD));
+        RETURN OLD;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-----------------------------------------------------------------------------------------------------------------
+-- Function crear_usuario con bcrypt para encriptar contraseñas, asignar roles en la central y sucursal.
 
 CREATE OR REPLACE FUNCTION crear_usuario(
     p_nombre_usuario VARCHAR(50),
@@ -578,49 +623,8 @@ SELECT create_remote_sucursal_connection(
 
 -----------------------------------------------------------------------------------------------------------------
 
--- Función para auditar las operaciones en las tablas
-CREATE OR REPLACE FUNCTION audit_function() RETURNS trigger AS $$
-DECLARE
-    key_field TEXT;
-    key_value UUID; 
-BEGIN
-    -- Obtener el nombre del campo clave primario de la tabla afectada
-    SELECT attname INTO key_field
-    FROM pg_index i
-    JOIN pg_attribute a ON a.attrelid = i.indrelid
-    AND a.attnum = ANY(i.indkey)
-    WHERE i.indrelid = TG_RELID
-    AND i.indisprimary;
 
-    -- Construir la clave primaria de manera dinámica usando EXECUTE
-    IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
-        EXECUTE 'SELECT ($1).' || key_field INTO key_value USING NEW;
-    ELSIF (TG_OP = 'DELETE') THEN
-        EXECUTE 'SELECT ($1).' || key_field INTO key_value USING OLD;
-    END IF;
-
-    -- Registrar la operación de INSERT
-    IF (TG_OP = 'INSERT') THEN
-        INSERT INTO public.audit_log(user_id, action, timestamp, table_name, record_id, new_data)
-        VALUES (current_user, TG_OP, current_timestamp, TG_TABLE_NAME, key_value, row_to_json(NEW));
-        RETURN NEW;
-    -- Registrar la operación de UPDATE
-    ELSIF (TG_OP = 'UPDATE') THEN
-        INSERT INTO public.audit_log(user_id, action, timestamp, table_name, record_id, old_data, new_data)
-        VALUES (current_user, TG_OP, current_timestamp, TG_TABLE_NAME, key_value, row_to_json(OLD), row_to_json(NEW));
-        RETURN NEW;
-    -- Registrar la operación de DELETE
-    ELSIF (TG_OP = 'DELETE') THEN
-        INSERT INTO public.audit_log(user_id, action, timestamp, table_name, record_id, old_data)
-        VALUES (current_user, TG_OP, current_timestamp, TG_TABLE_NAME, key_value, row_to_json(OLD));
-        RETURN OLD;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
------------------------------------------------------------------------------------------------------------------
-
--- Funcion validar cuenta se usa para buscar la exixtencia del cliente para la integridad de los datos en la centrañ
+--Funcion validar cuenta se usa para buscar la exixtencia del cliente para la integridad de los datos en la centrañ
 
 CREATE OR REPLACE FUNCTION validar_cuenta_remota()
 RETURNS TRIGGER AS $$
@@ -695,6 +699,9 @@ EXCEPTION
         RAISE;
 END;
 $$;
+
+-- Ejemplo de uso:
+SELECT * FROM Depositar('uuid_cuenta', 'monto', 'uuid_sucursal');
 
 -----------------------------------------------------------------------------------------------------------------
 
@@ -962,41 +969,13 @@ SELECT * FROM obtener_saldo_total_sucursales();
                 <h2 className="section-title">Roles Sistema Bancarío</h2>
                 <div className="mockup-code">
                     <pre><code className="language-sql">{`
--- Asignar Roles en la base de datos central
-
--- Rol Cajero (acceso limitado)
-CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; 
-GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
-GRANT SELECT, UPDATE ON Usuarios TO cajero;  -- Permite ver datos de los usuarios (opcional)
-GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero; -- Permite hacer auditoria 
-GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
-GRANT EXECUTE ON FUNCTION transferencia_interbancaria(UUID, UUID, DECIMAL) TO cajero;
-GRANT EXECUTE ON FUNCTION buscar_cliente_en_sucursales(UUID) TO cajero;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
-
--- Rol Asesor Financiero
-CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
-GRANT SELECT, INSERT, UPDATE, DELETE ON Prestamos TO asesor_financiero;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Tarjetas_Credito TO asesor_financiero;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Atencion_Clientes TO asesor_financiero;
-GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero; -- Permite hacer auditoria 
-GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero; -- Permite ver datos de los usuarios (opcional)
-GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
-
--- Rol Gerente (permisos completos)
-CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
-GRANT SELECT ON audit_log TO gerente; -- Permiso para ver el log de auditoría
-GRANT EXECUTE ON FUNCTION obtener_transacciones_sucursales(VARCHAR) TO gerente;
-GRANT EXECUTE ON FUNCTION obtener_saldo_total_sucursales() TO gerente;
-GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
-GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
+-- Roles en la base de datos central, es repetitivo asignar roles, ya qué se debe tener en cuenta la seguridad de los datos y qué estos se deben crear en cada sucarsal nueva.
+-- Nota: Debido al diseño y funcionamiento de la base de datos central, se recomienda asignar roles en las sucursales y usar rol postgres para consultas centalizadas.
 
 --------------------------------------------------------------------------------------------------------------------------
 
 -- Roles en las bases de datos de las sucursales
+-- Nota: Se debe conectar la base de datos central con las sucursales para asignar los roles.
 
 -- Rol Cajero
 CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
@@ -1013,10 +992,9 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
 
 -- Rol Asesor Financiero
 CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
-GRANT SELECT, INSERT, UPDATE ON Clientes, Cuentas, Prestamos, Tarjetas_Credito, Atencion_Clientes TO asesor_financiero;
-GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero;
+GRANT SELECT, INSERT, UPDATE ON Clientes, Cuentas, Prestamos, Tarjetas_Credito, Atencion_Clientes, Audit_Log  TO asesor_financiero;
 GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero;
-GRANT SELECT ON Transacciones TO asesor_financiero;
+GRANT SELECT ON Transacciones, Sucursales TO asesor_financiero;
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
 
@@ -1025,30 +1003,12 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
 CREATE ROLE gerente LOGIN PASSWORD 'password_gerente'; -- Reemplazar con una contraseña segura
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
-GRANT SELECT, INSERT, UPDATE ON Usuarios TO asesor_financiero;
+GRANT SELECT, INSERT, UPDATE ON Usuarios TO gerente;
+GRANT SELECT, INSERT, UPDATE ON Audit_Log TO gerente;
 GRANT EXECUTE ON FUNCTION crear_usuario(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para crear usuarios
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO gerente; -- Permiso para cambiar contraseña
-GRANT SELECT ON audit_log TO gerente; -- Permiso para ver el log de auditoría
 
 
---------------------------------------------------------------------------------------------------------------------------------------
--- Asignar permisos a los roles en las bases de datos cetral - es así por que cada suscursal se guarda en un nuevo esquema.
-DO $$
-DECLARE
-    esquema TEXT;
-BEGIN
-    -- Iterar sobre todos los esquemas que no son esquemas del sistema
-    FOR esquema IN
-        SELECT schema_name
-        FROM information_schema.schemata
-        WHERE schema_name NOT IN ('public', 'information_schema', 'pg_catalog', 'pg_toast', 'pg_temp_1', 'pg_toast_temp_1')
-    LOOP
-        -- Otorgar permisos de SELECT sobre cada esquema 
-        EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO cajero', esquema);
-        EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO asesor_financiero', esquema);
-        EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I TO gerente', esquema);
-    END LOOP;
-END $$;
 
                     `}
                     </code></pre>
@@ -1059,6 +1019,7 @@ END $$;
                 <div className="mockup-code">
                     <pre><code className="language-sql">{`
 -- Trigger para auditar las operaciones en las tablas de la base de datos central
+
 
 CREATE TRIGGER atencion_clientes_audit_trigger
 AFTER INSERT OR UPDATE OR DELETE ON Atencion_Clientes
@@ -1074,6 +1035,24 @@ CREATE TRIGGER tarjetas_credido_audit_trigger
 AFTER INSERT OR UPDATE OR DELETE ON Tarjetas_Credito
 FOR EACH ROW
 EXECUTE FUNCTION audit_function();
+
+
+-- Trigger para ejecutar validar cliente antes de insertar en tablas de la central.
+
+CREATE TRIGGER trigger_validar_cuenta_remota
+BEFORE INSERT ON Prestamos
+FOR EACH ROW
+EXECUTE FUNCTION validar_cuenta_remota();
+
+CREATE TRIGGER trigger_validar_cuenta_remota
+BEFORE INSERT ON  Tarjetas_Credito
+FOR EACH ROW
+EXECUTE FUNCTION validar_cuenta_remota();
+
+CREATE TRIGGER trigger_validar_cuenta_remota
+BEFORE INSERT ON Atencion_Clientes
+FOR EACH ROW
+EXECUTE FUNCTION validar_cuenta_remota();
 
 -- Trigger para auditar las operaciones en las tablas de la base de datos sucursal
 
@@ -1096,24 +1075,6 @@ CREATE TRIGGER cuentas_audit_trigger
 AFTER INSERT OR UPDATE OR DELETE ON Sucursales
 FOR EACH ROW
 EXECUTE FUNCTION audit_function();
-
-
--- Trigger para ejecutar validar cliente antes de insertar en tablas de la central.
-
-CREATE TRIGGER trigger_validar_cuenta_remota
-BEFORE INSERT ON Prestamos
-FOR EACH ROW
-EXECUTE FUNCTION validar_cuenta_remota();
-
-CREATE TRIGGER trigger_validar_cuenta_remota
-BEFORE INSERT ON  Tarjetas_Credito
-FOR EACH ROW
-EXECUTE FUNCTION validar_cuenta_remota();
-
-CREATE TRIGGER trigger_validar_cuenta_remota
-BEFORE INSERT ON Atencion_Clientes
-FOR EACH ROW
-EXECUTE FUNCTION validar_cuenta_remota();
 
           `}</code></pre>
                 </div>
@@ -1173,6 +1134,168 @@ ORDER BY c.saldo DESC;
           `}</code></pre>
                 </div>
             </section>
+
+            <section className="sql-section">
+                <h2 className="section-title">Scripts SELECT INSERT UPDATE DELETE</h2>
+                <div className="mockup-code">
+                    <pre><code className="language-sql scrollable-section">
+                        {`
+                        -- Tablas Centrales
+
+-- Préstamos CRUD
+-- Create
+INSERT INTO Prestamos (id_cliente, monto, tasa_interes, fecha_aprobacion, estado_prestamo)
+VALUES (uuid_generate_v4(), 10000.00, 5.5, CURRENT_DATE, 'Aprobado');
+
+-- Read
+SELECT * FROM Prestamos WHERE id_prestamo = 'uuid_here';
+
+-- Update
+UPDATE Prestamos
+SET monto = 12000.00, tasa_interes = 6.0, estado_prestamo = 'En curso'
+WHERE id_prestamo = 'uuid_here';
+
+-- Delete
+DELETE FROM Prestamos WHERE id_prestamo = 'uuid_here';
+
+-- Tarjetas de Crédito CRUD
+-- Create
+INSERT INTO Tarjetas_Credito (id_cliente, limite_credito, saldo_disponible, fecha_emision, estado)
+VALUES (uuid_generate_v4(), 5000.00, 5000.00, CURRENT_DATE, 'Activa');
+
+-- Read
+SELECT * FROM Tarjetas_Credito WHERE id_tarjeta = 'uuid_here';
+
+-- Update
+UPDATE Tarjetas_Credito
+SET limite_credito = 6000.00, saldo_disponible = 5500.00, estado = 'Bloqueada'
+WHERE id_tarjeta = 'uuid_here';
+
+-- Delete
+DELETE FROM Tarjetas_Credito WHERE id_tarjeta = 'uuid_here';
+
+-- Atención a Clientes CRUD
+-- Create
+INSERT INTO Atencion_Clientes (id_cliente, fecha_ticket, asunto, estado_ticket)
+VALUES (uuid_generate_v4(), CURRENT_DATE, 'Consulta sobre préstamo', 'Abierto');
+
+-- Read
+SELECT * FROM Atencion_Clientes WHERE id_ticket = 'uuid_here';
+
+-- Update
+UPDATE Atencion_Clientes
+SET asunto = 'Actualización de consulta sobre préstamo', estado_ticket = 'En Proceso'
+WHERE id_ticket = 'uuid_here';
+
+-- Delete
+DELETE FROM Atencion_Clientes WHERE id_ticket = 'uuid_here';
+
+-- Audit Log CRUD
+-- Create (normalmente se hace automáticamente, pero aquí hay un ejemplo manual)
+INSERT INTO audit_log (user_id, action, table_name, record_id, old_data, new_data)
+VALUES ('user123', 'UPDATE', 'Prestamos', 'uuid_here', 
+        '{"monto": 10000.00}'::jsonb, 
+        '{"monto": 12000.00}'::jsonb);
+
+-- Read
+SELECT * FROM audit_log WHERE audit_id = 1;
+
+-- Update (normalmente no se actualizaría un registro de auditoría, pero aquí hay un ejemplo)
+UPDATE audit_log
+SET action = 'DELETE'
+WHERE audit_id = 1;
+
+-- Delete (normalmente no se eliminarían registros de auditoría, pero aquí hay un ejemplo)
+DELETE FROM audit_log WHERE audit_id = 1;
+
+-- Usuarios CRUD
+-- Create
+INSERT INTO Usuarios (nombre_usuario, contraseña, rol)
+VALUES ('nuevo_usuario', 'contraseña_encriptada', 'cajero');
+
+-- Read
+SELECT * FROM Usuarios WHERE id_usuario = 1;
+
+-- Update
+UPDATE Usuarios
+SET rol = 'asesor'
+WHERE id_usuario = 1;
+
+-- Delete
+DELETE FROM Usuarios WHERE id_usuario = 1;
+
+-- Tablas de Sucursal
+
+-- Sucursales CRUD
+-- Create
+INSERT INTO Sucursales (nombre_sucursal, ubicacion)
+VALUES ('Sucursal Centro', 'Calle Principal 123');
+
+-- Read
+SELECT * FROM Sucursales WHERE id_sucursal = 'uuid_here';
+
+-- Update
+UPDATE Sucursales
+SET ubicacion = 'Avenida Central 456'
+WHERE id_sucursal = 'uuid_here';
+
+-- Delete
+DELETE FROM Sucursales WHERE id_sucursal = 'uuid_here';
+
+-- Clientes CRUD
+-- Create
+INSERT INTO Clientes (nombre_cliente, direccion, tel_cliente, correo_cliente)
+VALUES ('Juan Pérez', 'Calle 1 #234', '1234567890', 'juan@example.com');
+
+-- Read
+SELECT * FROM Clientes WHERE id_cliente = 'uuid_here';
+
+-- Update
+UPDATE Clientes
+SET direccion = 'Avenida 2 #567', tel_cliente = '0987654321'
+WHERE id_cliente = 'uuid_here';
+
+-- Delete
+DELETE FROM Clientes WHERE id_cliente = 'uuid_here';
+
+-- Cuentas CRUD
+-- Create
+INSERT INTO Cuentas (id_cliente, tipo_cuenta, saldo, fecha_apertura, id_sucursal)
+VALUES ('uuid_cliente', 'Ahorros', 1000.00, CURRENT_DATE, 'uuid_sucursal');
+
+-- Read
+SELECT * FROM Cuentas WHERE id_cuenta = 'uuid_here';
+
+-- Update
+UPDATE Cuentas
+SET saldo = 1500.00, tipo_cuenta = 'Corriente'
+WHERE id_cuenta = 'uuid_here';
+
+-- Delete
+DELETE FROM Cuentas WHERE id_cuenta = 'uuid_here';
+
+-- Transacciones CRUD
+-- Create
+INSERT INTO Transacciones (id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
+VALUES ('uuid_cuenta', 'Depósito', 500.00, CURRENT_DATE, 'uuid_sucursal');
+
+-- Read
+SELECT * FROM Transacciones WHERE id_transaccion = 'uuid_here';
+
+-- Update
+UPDATE Transacciones
+SET monto = 600.00, tipo_transaccion = 'Retiro'
+WHERE id_transaccion = 'uuid_here';
+
+-- Delete
+DELETE FROM Transacciones WHERE id_transaccion = 'uuid_here';
+
+
+                        `}
+                    </code></pre>
+                </div>
+            </section>
+
 
             <section className="sql-section">
                 <h2 className="section-title">Procedimientos Almacenados</h2>
