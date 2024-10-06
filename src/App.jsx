@@ -284,7 +284,7 @@ CREATE INDEX idx_transaccion_cuenta ON Transacciones(id_cuenta);
                     <pre><code className="language-sql scrollable-section">{
                         
 `
--- Función para auditar las operaciones en las tablas
+-- Función para auditar las operaciones en las tablas de la base de datos
 
 CREATE OR REPLACE FUNCTION audit_function() RETURNS trigger AS $$
 DECLARE
@@ -327,7 +327,7 @@ $$ LANGUAGE plpgsql;
 
 
 -----------------------------------------------------------------------------------------------------------------
--- Function crear_usuario con bcrypt para encriptar contraseñas, asignar roles en la central y sucursal.
+-- Function crear_usuario con bcrypt para encriptar contraseñas, asignar roles en las sucursales.
 
 CREATE OR REPLACE FUNCTION crear_usuario(
     p_nombre_usuario VARCHAR(50),
@@ -377,7 +377,7 @@ SELECT crear_usuario('cajero2', 'contraseña_segura', 'cajero');
 
 -----------------------------------------------------------------------------------------------------------------
 
--- Function cambiar_contraseña para cambiar la contraseña de un usuario en la central y sucursales.
+-- Function cambiar_contraseña para cambiar la contraseña de un usuario en las sucursales.
 
 CREATE OR REPLACE FUNCTION cambiar_contraseña(
     p_nombre_usuario VARCHAR(50),
@@ -512,7 +512,7 @@ SELECT create_remote_central_connection(
 
 -----------------------------------------------------------------------------------------------------------------
 
--- Función para crear una conexión remota a una sucursal y se crea un nuevo esquema en la central con el server name para evitar coliciones.
+-- Función para crear una conexión remota a una sucursal y crear un nuevo esquema en la central con el server name para evitar coliciones.
 
 CREATE OR REPLACE FUNCTION create_remote_sucursal_connection(
     p_server_name TEXT,
@@ -638,7 +638,7 @@ SELECT create_remote_sucursal_connection(
 -----------------------------------------------------------------------------------------------------------------
 
 
---Funcion validar cuenta se usa para buscar la exixtencia del cliente para la integridad de los datos en la centrañ
+--Funcion validar cuenta se usa para buscar la exixtencia del cliente para la integridad de los datos en la central.
 
 CREATE OR REPLACE FUNCTION validar_cuenta_remota()
 RETURNS TRIGGER AS $$
