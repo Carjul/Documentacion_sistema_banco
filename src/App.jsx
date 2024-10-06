@@ -1413,7 +1413,7 @@ services:
             </section>
 
             <footer>
-                <p>Documentación SQL - By Carlos Ramos.</p>
+                <p>Documentación SQL - Sistema bancario.</p>
             </footer>
         </div>
     );
