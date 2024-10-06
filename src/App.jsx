@@ -334,6 +334,8 @@ CREATE OR REPLACE FUNCTION crear_usuario(
     p_contraseña VARCHAR(50),
     p_rol VARCHAR(50)
 ) RETURNS VOID AS $$
+DECLARE
+    v_role_exists BOOLEAN;
 BEGIN
     -- Verificar que la extensión pgcrypto está instalada
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -343,18 +345,30 @@ BEGIN
         RAISE EXCEPTION 'Rol no válido. Los roles permitidos son: cajero, asesor_financiero, gerente';
     END IF;
     
+    -- Verificar si el rol existe en la base de datos
+    SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = p_rol) INTO v_role_exists;
+    
+    IF NOT v_role_exists THEN
+        RAISE EXCEPTION 'El rol % no existe en la base de datos', p_rol;
+    END IF;
+    
     -- Insertar el nuevo usuario con la contraseña encriptada usando bcrypt
     INSERT INTO Usuarios (nombre_usuario, contraseña, rol)
     VALUES (p_nombre_usuario, crypt(p_contraseña, gen_salt('bf')), p_rol);
     
-    -- Crear el rol en PostgreSQL si no existe
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', p_nombre_usuario, p_contraseña);
+    -- Crear el usuario en PostgreSQL si no existe
+    PERFORM 1 FROM pg_user WHERE usename = p_nombre_usuario;
+    IF NOT FOUND THEN
+        EXECUTE format('CREATE USER %I WITH PASSWORD %L', p_nombre_usuario, p_contraseña);
+    ELSE
+        EXECUTE format('ALTER USER %I WITH PASSWORD %L', p_nombre_usuario, p_contraseña);
+    END IF;
 
-    -- Asignar permisos basados en el rol
+    -- Asignar el rol existente al nuevo usuario
     EXECUTE format('GRANT %I TO %I', p_rol, p_nombre_usuario);
     
     -- Notificación de éxito
-    RAISE NOTICE 'Usuario % creado con éxito', p_nombre_usuario;
+    RAISE NOTICE 'Usuario % creado con éxito y asignado al rol %', p_nombre_usuario, p_rol;
 END;
 $$ LANGUAGE plpgsql;
 
