@@ -773,7 +773,7 @@ SELECT * FROM public.retiro('uuid_cuenta', 'monto', 'uuid_sucursal');
 
 -----------------------------------------------------------------------------------------------------------------
 
--- function transferencía entre cuentas de diferente sucursal, desde db central.
+-- function transferencía entre cuentas de diferente sucursal o cuentas de la misma sucursal, desde db central.
 
 CREATE OR REPLACE FUNCTION transferencia_interbancaria(
     p_id_cuenta_origen UUID,
