@@ -152,6 +152,7 @@ CREATE TABLE Prestamos (
     tasa_interes DECIMAL(5, 2),
     fecha_aprobacion DATE, 
     estado_prestamo VARCHAR(50)
+		CONSTRAINT estado_prestamo_check CHECK (estado_prestamo IN ('activo','aprobado','desembolsado','perdido','mora','liquidado'))
 );
 
 -- Crear la tabla de Tarjetas de Crédito
@@ -162,6 +163,7 @@ CREATE TABLE Tarjetas_Credito (
     saldo_disponible DECIMAL(12, 2),
     fecha_emision DATE DEFAULT CURRENT_DATE,
     estado VARCHAR(50)
+		CONSTRAINT estado_check CHECK (estado IN ('Activa', 'Bloqueada', 'Mora'))
 );
 
 -- Crear la tabla de Atención a Clientes
@@ -171,7 +173,7 @@ CREATE TABLE Atencion_Clientes (
     fecha_ticket DATE DEFAULT CURRENT_DATE,
     asunto TEXT,
     estado_ticket VARCHAR(50) 
-		CONSTRAINT estado_ticket_check CHECK (estado_ticket IN ('Abierto', 'Cerrado', 'En Proceso'))
+		CONSTRAINT estado_ticket_check CHECK (estado_ticket IN ('Cumplido', 'Pendiente'))
 );
 
 -- Tabla de auditoría
@@ -202,24 +204,27 @@ CREATE TABLE Usuarios (
                 <h2 className="section-title">Tablas Sucursal</h2>
                 <div className="mockup-code">
                     <pre><code className="language-sql">
-                        {`-- Tablas de cada sucursal (ej. en Sucursal 1)
+                        {`
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";  -- Habilitar la extensión uuid-ossp
 
 -- Tabla de Sucursales
 CREATE TABLE Sucursales (
     id_sucursal UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre_sucursal VARCHAR(100),
-    ubicacion VARCHAR(255)
+    ubicacion VARCHAR(255),
+	ciudad VARCHAR(255)
 );
 
 -- Tabla de Clientes
 CREATE TABLE Clientes (
     id_cliente UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	apellido_cliente VARCHAR(100),
     nombre_cliente VARCHAR(100),
     direccion VARCHAR(255),
     tel_cliente VARCHAR(20),
     correo_cliente VARCHAR(100),
-	CONSTRAINT correo_cliente_check CHECK (correo_cliente ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$') -- Validar formato de correo
+    id_sucursal UUID REFERENCES Sucursales(id_sucursal),
+	CONSTRAINT correo_cliente_check CHECK (correo_cliente ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,}$') -- Validar formato de correo
 
 );
 
@@ -231,7 +236,7 @@ CREATE TABLE Cuentas (
     saldo DECIMAL(12, 2),
     fecha_apertura DATE DEFAULT CURRENT_DATE,
     id_sucursal UUID REFERENCES Sucursales(id_sucursal),
-	CONSTRAINT tipo_cuenta_check CHECK (tipo_cuenta IN ('Ahorros', 'Corriente', 'Inversión')) -- Validar tipo de cuenta
+	CONSTRAINT tipo_cuenta_check CHECK (tipo_cuenta IN ('ahorros', 'corriente', 'nomina','pension','expres')) -- Validar tipo de cuenta
 
 );
 
@@ -243,7 +248,7 @@ CREATE TABLE Transacciones (
     monto DECIMAL(12, 2),
     fecha DATE DEFAULT CURRENT_DATE,
     id_sucursal UUID REFERENCES Sucursales(id_sucursal),
-	CONSTRAINT tipo_transaccion_check CHECK (tipo_transaccion IN ('Depósito', 'Retiro', 'Transferencia')) -- Validar tipo de transacción
+	CONSTRAINT tipo_transaccion_check CHECK (tipo_transaccion IN ('nomina', 'transferencia', 'redireccionamiento')) -- Validar tipo de transacción
 
 );
 
@@ -271,6 +276,7 @@ CREATE TABLE Usuarios (
 --Crea realaciones entre tablas
 CREATE INDEX idx_cliente ON Cuentas(id_cliente);
 CREATE INDEX idx_sucursal ON Cuentas(id_sucursal);
+CREATE INDEX idx_sucursal2 ON Clientes(id_sucursal);
 CREATE INDEX idx_transaccion_cuenta ON Transacciones(id_cuenta);
 
 `}
@@ -511,7 +517,6 @@ SELECT create_remote_central_connection(
 );
 
 -----------------------------------------------------------------------------------------------------------------
-
 -- Función para crear una conexión remota a una sucursal y crear un nuevo esquema en la central con el server name para evitar coliciones.
 
 CREATE OR REPLACE FUNCTION create_remote_sucursal_connection(
@@ -535,7 +540,7 @@ DECLARE
     foreign_table RECORD;
 BEGIN
     -- Set the schema name
-    schema_name :=  p_server_name;
+    schema_name :=  p_dbname;
 
     -- Check if postgres_fdw extension exists
     SELECT EXISTS (
@@ -623,7 +628,7 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
---ejemplo de instanciar function
+--ejemplo de intancia func
 SELECT create_remote_sucursal_connection(
     'sucursal_1',              -- server name
     '172.18.0.1',              -- host
@@ -681,6 +686,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION Depositar(
     _id_cuenta UUID,
     _monto DECIMAL(12,2),
+	_tipo_transaccion VARCHAR(50),
     _id_sucursal UUID
 )
 RETURNS UUID
@@ -699,7 +705,7 @@ BEGIN
 
     -- Registrar la transacción
     INSERT INTO Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
-    VALUES (_id_transaccion, _id_cuenta, 'Depósito', _monto, CURRENT_DATE, _id_sucursal);
+    VALUES (_id_transaccion, _id_cuenta, _tipo_transaccion, _monto, CURRENT_DATE, _id_sucursal);
 
     -- Incrementar el saldo de la cuenta
     UPDATE Cuentas SET saldo = saldo + _monto WHERE id_cuenta = _id_cuenta;
@@ -715,7 +721,8 @@ END;
 $$;
 
 -- Ejemplo de uso:
-SELECT * FROM Depositar('uuid_cuenta', 'monto', 'uuid_sucursal');
+SELECT * FROM Depositar('uuid_cuenta', 'monto','tipo_transaccion', 'uuid_sucursal');
+
 
 -----------------------------------------------------------------------------------------------------------------
 
@@ -724,6 +731,7 @@ SELECT * FROM Depositar('uuid_cuenta', 'monto', 'uuid_sucursal');
 CREATE OR REPLACE FUNCTION public.retiro(
 	_id_cuenta uuid,
 	_monto numeric,
+	_tipo_transaccion VARCHAR(50),
 	_id_sucursal uuid)
     RETURNS uuid
     LANGUAGE 'plpgsql'
@@ -752,7 +760,7 @@ BEGIN
 
     -- Registrar la transacción
     INSERT INTO Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal)
-    VALUES (_id_transaccion, _id_cuenta, 'Retiro', _monto * 1, CURRENT_DATE, _id_sucursal);
+    VALUES (_id_transaccion, _id_cuenta, _tipo_transaccion, _monto * 1, CURRENT_DATE, _id_sucursal);
 
     -- Decrementar el saldo de la cuenta
     UPDATE Cuentas SET saldo = saldo - _monto WHERE id_cuenta = _id_cuenta;
@@ -769,12 +777,11 @@ $BODY$;
 
 -- Ejemplo de uso:
 
-SELECT * FROM public.retiro('uuid_cuenta', 'monto', 'uuid_sucursal');
+SELECT * FROM public.retiro('uuid_cuenta', 'monto', 'tipo_transaccion', 'uuid_sucursal');
 
 -----------------------------------------------------------------------------------------------------------------
 
 -- function transferencía entre cuentas de diferente sucursal o cuentas de la misma sucursal, desde db central.
-
 CREATE OR REPLACE FUNCTION transferencia_interbancaria(
     p_id_cuenta_origen UUID,
     p_id_cuenta_destino UUID,
@@ -821,7 +828,7 @@ BEGIN
 
             -- Registrar la transacción en la tabla de Transacciones del esquema de la cuenta de origen con monto negativo
             EXECUTE format('INSERT INTO %I.Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal) 
-                            VALUES (uuid_generate_v4(), $1, ''Transferencia'', $2 * -1, CURRENT_DATE, $3)', esquema)
+                            VALUES (uuid_generate_v4(), $1, ''transferencia'', $2 * -1, CURRENT_DATE, $3)', esquema)
             USING p_id_cuenta_origen, p_monto, id_sucursal_origen;
 
             RAISE NOTICE 'Transacción de retiro registrada en el esquema % con monto negativo', esquema;
@@ -844,7 +851,7 @@ BEGIN
 
             -- Registrar la transacción en la tabla de Transacciones del esquema de la cuenta de destino
             EXECUTE format('INSERT INTO %I.Transacciones (id_transaccion, id_cuenta, tipo_transaccion, monto, fecha, id_sucursal) 
-                            VALUES (uuid_generate_v4(), $1, ''Transferencia'', $2, CURRENT_DATE, $3)', esquema)
+                            VALUES (uuid_generate_v4(), $1, ''transferencia'', $2, CURRENT_DATE, $3)', esquema)
             USING p_id_cuenta_destino, p_monto, id_sucursal_destino;
 
             RAISE NOTICE 'Transacción de depósito registrada en el esquema %', esquema;
