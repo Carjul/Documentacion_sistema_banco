@@ -1065,30 +1065,25 @@ EXECUTE FUNCTION audit_function();
 -- Roles en las bases de datos de las sucursales
 -- Nota: Se debe conectar la base de datos central con las sucursales para asignar los roles.
 
--- Rol Cajero
-CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
+-- Rol cajero: CREATE ROLE cajero LOGIN PASSWORD 'password_cajero'; -- Reemplazar con una contraseña segura
 GRANT SELECT ON Cuentas, Sucursales, Clientes, Usuarios TO cajero;
 GRANT  UPDATE ON Usuarios, Cuentas TO cajero;
 GRANT INSERT ON Atencion_Clientes TO cajero;  -- Permite registrar tickets
 GRANT SELECT, INSERT, UPDATE ON Transacciones TO cajero;
 GRANT SELECT, INSERT, UPDATE ON Audit_Log TO cajero;
-GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL, UUID) TO cajero;
-GRANT EXECUTE ON FUNCTION retiro(UUID, DECIMAL, UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION Depositar(UUID, DECIMAL,VARCHAR(50), UUID) TO cajero;
+GRANT EXECUTE ON FUNCTION retiro(UUID, DECIMAL,VARCHAR(50), UUID) TO cajero;
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO cajero; -- Permiso para cambiar contraseña
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cajero;
 
-
--- Rol Asesor Financiero
-CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor'; -- Reemplazar con una contraseña segura
+-- Rol Asesor Financiero: CREATE ROLE asesor_financiero LOGIN PASSWORD 'password_asesor';
 GRANT SELECT, INSERT, UPDATE ON Clientes, Cuentas, Prestamos, Tarjetas_Credito, Atencion_Clientes, Audit_Log  TO asesor_financiero;
 GRANT SELECT, UPDATE ON Usuarios TO asesor_financiero;
 GRANT SELECT ON Transacciones, Sucursales TO asesor_financiero;
 GRANT EXECUTE ON FUNCTION cambiar_contraseña(VARCHAR, VARCHAR, VARCHAR) TO asesor_financiero; -- Permiso para cambiar contraseña
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO asesor_financiero;
 
-
--- Rol Gerente (permisos completos)
-CREATE ROLE gerente LOGIN PASSWORD 'password_gerente'; -- Reemplazar con una contraseña segura
+-- Rol Gerente (permisos completos): CREATE ROLE gerente LOGIN PASSWORD 'password_gerente';
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gerente;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gerente;
 GRANT SELECT, INSERT, UPDATE ON Usuarios TO gerente;
